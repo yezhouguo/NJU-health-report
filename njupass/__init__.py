@@ -5,14 +5,13 @@ PACKAGES:
     NjuUiaAuth
     NjuEliteAuth
 """
-from Crypto.Cipher import AES
-import random
-import base64
-import string
+import execjs
 import requests
 import re
 import os
 from io import BytesIO
+import njupass.ocr
+import time
 
 URL_NJU_UIA_AUTH = 'https://authserver.nju.edu.cn/authserver/login'
 URL_NJU_ELITE_LOGIN = 'http://elite.nju.edu.cn/jiaowu/login.do'
@@ -27,7 +26,7 @@ class NjuUiaAuth:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:56.0) Gecko/20100101 Firefox/56.0'
+            'User-Agent': "Mozilla/5.0 (Linux; Android 11; M2006J10C Build/RP1A.200720.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/87.0.4280.141 Mobile Safari/537.36  cpdaily/8.2.7 wisedu/8.2.7})"
         })
 
         r = self.session.get(URL_NJU_UIA_AUTH)
@@ -40,7 +39,7 @@ class NjuUiaAuth:
         self.rmShown = re.search(
             r'<input type="hidden" name="rmShown" value="(.*)"', r.text).group(1)
         self.pwdDefaultEncryptSalt = re.search(
-            r'<input type="hidden" id="pwdDefaultEncryptSalt" value="(.*)"', r.text).group(1)
+            r'var pwdDefaultEncryptSalt = "(.*)"', r.text).group(1)
 
     def getCaptchaCode(self):
         """
@@ -60,18 +59,9 @@ class NjuUiaAuth:
         ATTRIBUTES:
             password(str): Original password
         """
-        random_iv = ''.join(random.sample((string.ascii_letters + string.digits) * 10, 16))
-        random_str = ''.join(random.sample((string.ascii_letters + string.digits) * 10, 64))
-
-        data = random_str + password
-        key = self.pwdDefaultEncryptSalt.encode("utf-8")
-        iv = random_iv.encode("utf-8")
-
-        bs = AES.block_size
-        pad = lambda s: s + (bs - len(s) % bs) * chr(bs - len(s) % bs)
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        data = cipher.encrypt(pad(data).encode("utf-8"))
-        return base64.b64encode(data).decode("utf-8")
+        with open(os.path.join(os.path.dirname(__file__), 'resources/encrypt.js')) as f:
+            ctx = execjs.compile(f.read())
+        return ctx.call('encryptAES', password, self.pwdDefaultEncryptSalt)
 
     def needCaptcha(self, username):
         url = 'https://authserver.nju.edu.cn/authserver/needCaptcha.html?username={}'.format(
@@ -81,6 +71,24 @@ class NjuUiaAuth:
             return True
         else:
             return False
+
+    def tryLogin(self, username, password):
+        """
+        DESCRIPTION:
+            Try to login using OCR to bypass captcha.
+            Return true if login success, false otherwise
+        """
+        try_times = 3
+        for _ in range(try_times):
+            captchaText = ""
+            if self.needCaptcha(username):
+                captchaText = ocr.detect(self.getCaptchaCode())
+            ok = self.login(username, password, captchaResponse=captchaText)
+            if ok:
+                return True
+            time.sleep(5)
+
+        return False
 
     def login(self, username, password, captchaResponse=""):
         """

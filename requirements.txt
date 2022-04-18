@@ -1,3 +1,5 @@
 requests
-pycryptodome
+PyExecJS
 python-dotenv
+pytz
+ddddocr
