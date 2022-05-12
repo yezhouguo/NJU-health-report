@@ -32,14 +32,15 @@ if __name__ == "__main__":
     password = os.getenv('NJU_PASSWORD')
     curr_location = os.getenv('CURR_LOCATION')
     method = os.getenv('COVID_TEST_METHOD')
-
+    hs_date = get_zjhs_time('YESTERDAY')
+        
     if method == '':
         method = 'YESTERDAY'
-
+    
     if username == '' or password == '' or curr_location == '':
         log.error('账户、密码或地理位置信息为空！请检查是否正确地设置了 SECRET 项（GitHub Action）。')
         os._exit(1)
-
+    
     log.info('尝试登录...')
 
     if auth.needCaptcha(username):
