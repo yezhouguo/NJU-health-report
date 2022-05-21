@@ -70,7 +70,7 @@ if __name__ == "__main__":
                 wid, curr_location, hs_date)
             url = URL_JKDK_APPLY + data
             log.info('正在打卡')
-            auth.session.get(url,headers={"Referer": "http://ehallapp.nju.edu.cn/xgfw/sys/mrjkdkappnju/index.html","User-Agent": "Mozilla/5.0 (Linux; Android 11; M2006J10C Build/RP1A.200720.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/92.0.4515.131 Mobile Safari/537.36 cpdaily/8.2.7 wisedu/8.2.7"})
+            auth.session.get(url)
             time.sleep(1)
         else:
             log.info("今日已打卡！")
